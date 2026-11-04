@@ -1,7 +1,7 @@
 """Licence-safe cover photos.
 
 Order: Wikimedia Commons (named people, companies, places, CC/PD only)
-       -> Pexels (generic scenes, free commercial licence)
+       -> Pixabay (generic scenes, free commercial licence)
        -> no photo (template falls back to a branded gradient).
 Every photo carries a credit line that goes into the caption and onto the cover.
 """
@@ -96,28 +96,38 @@ def wikimedia(query: str) -> Photo | None:
     return None
 
 
-def pexels(query: str) -> Photo | None:
-    if not query or not settings.pexels_api_key:
+def pixabay(query: str) -> Photo | None:
+    """Pixabay Content License: free commercial use, no attribution required (we credit anyway).
+    Their API terms forbid hotlinking, so we download and re-host, which is what we do."""
+    if not query or not settings.pixabay_api_key:
         return None
     try:
         r = requests.get(
-            "https://api.pexels.com/v1/search",
-            params={"query": query, "per_page": 5, "orientation": "portrait"},
-            headers={"Authorization": settings.pexels_api_key, "User-Agent": USER_AGENT},
+            "https://pixabay.com/api/",
+            params={
+                "key": settings.pixabay_api_key,
+                "q": query[:100],
+                "image_type": "photo",
+                "orientation": "vertical",
+                "safesearch": "true",
+                "min_width": 1080,
+                "per_page": 5,
+            },
+            headers={"User-Agent": USER_AGENT},
             timeout=20,
         )
-        photos = r.json().get("photos", [])
+        hits = r.json().get("hits", [])
     except Exception as e:
-        log.warning("pexels search failed: %s", e)
+        log.warning("pixabay search failed: %s", e)
         return None
-    for p in photos:
-        raw = _download(p["src"]["large2x"])
+    for h in hits:
+        raw = _download(h.get("largeImageURL", ""))
         if raw:
-            return Photo(_normalise(raw), f"Photo: {p.get('photographer', 'Pexels')} / Pexels", "pexels")
+            return Photo(_normalise(raw), f"Photo: {h.get('user', 'Pixabay')} / Pixabay", "pixabay")
     return None
 
 
 def find_photo(entity_query: str, scene_query: str) -> Photo | None:
-    photo = wikimedia(entity_query) or pexels(scene_query)
+    photo = wikimedia(entity_query) or pixabay(scene_query)
     log.info("cover photo: %s", photo.source if photo else "none, using gradient")
     return photo

@@ -26,7 +26,7 @@ class Settings:
     ig_access_token: str = _env("IG_ACCESS_TOKEN")  # seed only; refreshed copy lives in Supabase
     ig_api_version: str = _env("IG_API_VERSION", "v26.0")
 
-    pexels_api_key: str = _env("PEXELS_API_KEY")
+    pixabay_api_key: str = _env("PIXABAY_API_KEY")
 
     timezone: str = _env("TIMEZONE", "Europe/London")
     post_times: list = field(

@@ -21,7 +21,7 @@ Run `schema.sql` in the SQL editor. It creates `posts`, `settings` and a public 
 The token refreshes itself every Monday at 03:10 and the fresh copy is stored in Supabase, so you only paste it once.
 
 **3. Keys**
-`cp .env.example .env` and fill in Anthropic, Supabase, Instagram and Pexels (free at pexels.com/api).
+`cp .env.example .env` and fill in Anthropic, Supabase, Instagram and Pixabay (free at pixabay.com/api/docs).
 
 **4. Dry run first**
 ```bash
@@ -57,7 +57,7 @@ The `posts` table is the audit trail. Every rejected story has its `reason`, whi
 - No price calls, no investment advice, allegations stay allegations
 - Skips deaths, violence, disasters, sponsored posts, opinion pieces
 - Skips stories it can't read in full (it won't post what it can't verify)
-- Photos only from Wikimedia Commons (CC/public domain, file title must match the subject) or Pexels; otherwise a branded gradient
+- Photos only from Wikimedia Commons (CC/public domain, file title must match the subject) or Pixabay; otherwise a branded gradient
 - Photo credit on the cover and in the caption
 - No em or en dashes, enforced in code as well as the prompt
 - Checks Instagram's publishing quota before each post
