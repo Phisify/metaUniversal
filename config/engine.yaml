@@ -1,0 +1,45 @@
+# Phisify Meta Engine: editorial config.
+# Everything here can change without touching code.
+
+brand:
+  name: PHISIFY
+  handle: "@phisify"          # shown on every slide footer
+  accent: "#3D5AFE"           # accent colour for bars and the CTA slide
+
+# One carousel per run. Runs are set by POST_TIMES in .env (default 3x a day).
+mix:                           # target share of posts per pillar
+  crypto: 0.60
+  adjacent: 0.25               # AI, macro, big tech, founders, fundraising
+  culture: 0.15                # sport, gaming, celebs, only with a money/tech/crypto angle
+
+max_story_age_hours: 14
+dedupe_window_hours: 72        # never post the same story twice inside this window
+title_similarity_cutoff: 82    # 0-100, higher = stricter duplicate matching
+
+# The last slide of every carousel ties the story back to one of these.
+webinar_themes:
+  - "Why crypto launches stall after the raise"
+  - "Turning attention into product revenue"
+  - "Proof before fundraising"
+  - "Community-led growth that actually converts"
+
+cta_line: "Free Web3 masterclass every week. Link in bio."
+
+hashtags_always: ["#crypto", "#web3"]
+
+feeds:
+  # crypto
+  - { name: CoinDesk,      url: "https://www.coindesk.com/arc/outboundfeeds/rss/", pillar: crypto }
+  - { name: Cointelegraph, url: "https://cointelegraph.com/rss",                   pillar: crypto }
+  - { name: Decrypt,       url: "https://decrypt.co/feed",                         pillar: crypto }
+  - { name: The Block,     url: "https://www.theblock.co/rss.xml",                 pillar: crypto }
+  - { name: Blockworks,    url: "https://blockworks.co/feed",                      pillar: crypto }
+  # adjacent
+  - { name: BBC Business,   url: "https://feeds.bbci.co.uk/news/business/rss.xml",   pillar: adjacent }
+  - { name: BBC Technology, url: "https://feeds.bbci.co.uk/news/technology/rss.xml", pillar: adjacent }
+  - { name: TechCrunch,     url: "https://techcrunch.com/feed/",                     pillar: adjacent }
+  # culture
+  - { name: The Verge,      url: "https://www.theverge.com/rss/index.xml",            pillar: culture }
+  - { name: BBC Entertainment, url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", pillar: culture }
+  - { name: ESPN,           url: "https://www.espn.com/espn/rss/news",               pillar: culture }
+  - { name: IGN,            url: "https://feeds.feedburner.com/ign/all",             pillar: culture }

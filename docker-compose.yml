@@ -1,0 +1,11 @@
+services:
+  meta-engine:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ./out:/app/out
+      - ./config:/app/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
