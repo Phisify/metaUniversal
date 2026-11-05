@@ -109,7 +109,7 @@
         <div class="bar"></div>
         <div class="heading">Why it matters</div>
         <div class="body">{{ body }}</div>
-        <div class="theme">{{ theme }}</div>
+        {% if theme %}<div class="theme">{{ theme }}</div>{% endif %}
       </div>
     </div>
     <div class="footer"><span>{{ handle }}</span><span>Follow for daily breakdowns</span></div>

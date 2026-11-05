@@ -41,11 +41,18 @@ WRITE_SYSTEM = f"""You write Instagram carousels for PHISIFY. Format is fixed:
 1. COVER: cover_title is the subject in 1-3 words, Title Case (examples: "Federal Reserve", "Bitcoin Drops", "Coinbase", "GTA 6 Will").
    cover_subtitle completes the story in one line, max 12 words, and carries the key number if there is one
    (examples: "Leaves Interest Rates Unchanged, Remains at 3.75% to 4.00%", "Below $80,000 as Crypto Liquidations Hit $356 Million").
-2. SLIDES: 3 or 4 slides that explain what happened, the context, and what is still unknown. Each slide: heading max 6 words, body max 38 words.
-3. WHY IT MATTERS: max 40 words. Connect the story to builders and founders in Web3, through the lens of the chosen webinar theme.
-   It must follow logically from the facts. Do not force it. No sales pitch, no mention of webinars.
-4. CAPTION BODY: 2-3 short sentences that add something the slides do not, ending on a line that invites a comment.
-   No hashtags, no links, no CTA (they get added later).
+2. SLIDES: 3 or 4 slides: what happened, the key details, the context, and what comes next.
+   Each slide: heading max 6 words, body max 38 words. Every sentence must be stated in the source.
+   Only say something is unknown or undisclosed if the source itself says so.
+   Never mention "the source", "the article" or "reports" as a thing. Write as a news account, citing who said what by name.
+   Do not attribute anything to an outlet other than OUTLET.
+   Never name a private individual (someone who is not a public figure, executive or official) in connection with an accusation.
+3. WHY IT MATTERS: max 40 words, plain commentary built only on facts already in the slides.
+   If one of the WEBINAR THEMES is a natural lens, use it and set "theme" to it exactly.
+   If none fits naturally, explain what the story changes for crypto users or the market, and set "theme" to "".
+   No new facts, no advice, no sales pitch, no mention of webinars or fundraising unless the story is about fundraising.
+4. CAPTION BODY: 2-3 short sentences that add context the slides do not (still from the source), then one plain question
+   that invites a comment. No hashtags, no links, no CTA (they get added later).
 
 Also return image search queries:
 - entity_query: the single most photographable named subject (a person's full name, a company HQ, a landmark). Empty string if none.
@@ -58,7 +65,7 @@ And claims: every factual statement with a number, a date, a name or an allegati
 Return JSON only:
 {{
   "pillar": "crypto|adjacent|culture",
-  "theme": "<one webinar theme, copied exactly>",
+  "theme": "<one webinar theme copied exactly, or empty string>",
   "cover_title": "...",
   "cover_subtitle": "...",
   "slides": [{{"heading": "...", "body": "..."}}],
@@ -73,21 +80,38 @@ Return JSON only:
 
 
 CHECK_SYSTEM = f"""You are the last check before an automated Instagram post goes live with no human review.
-Compare the DRAFT against the SOURCE TEXT and MARKET SNAPSHOT. Be strict. When unsure, fail it.
+Compare the DRAFT against the SOURCE TEXT and MARKET SNAPSHOT. Be strict on facts and legal risk, relaxed on style.
 
-Fail the draft if ANY of these are true:
-- any number, date, name, title, or quote is not supported by the source text or market snapshot
-- the cover or slides overstate the source (e.g. "confirms" when the source says "reportedly")
-- an allegation is presented as fact, or a named private individual is accused of anything
-- it gives investment advice, a price prediction, or tells people to buy or sell
+The cover, slides and caption_body are FACTUAL. Fail if any of these are true there:
+- a number, date, name, title, quote or attribution is not supported by the source text or market snapshot
+- something is stated more strongly than the source (e.g. "confirms" when the source says "reportedly")
+- something is claimed to be unknown or undisclosed when the source does not say so
+- it refers to "the source" or "the article" as if it were a note to the editor
+
+why_it_matters is COMMENTARY by design. It may interpret and draw a lesson. Fail it ONLY if it:
+- introduces a new fact, number or name that is not in the source
+- gives investment advice, a price prediction, or tells people to buy or sell
+
+Anywhere in the draft, fail if:
+- an allegation is presented as fact, or a named private individual is linked to an accusation
 - it could reasonably be read as defamatory, hateful, or mocking a tragedy
-- it contains an em dash or en dash
 - the cover_title + cover_subtitle make no sense on their own
 
-Pass otherwise. Style nitpicks are not a reason to fail.
+Do NOT fail for: tone, word choice, the caption question, a lesson you would have framed differently,
+or anything you would describe as minor. List only issues that are reasons to fail on their own.
 
 {STYLE_RULES}
 
 Return JSON only:
-{{"pass": true|false, "issues": ["<specific problem>", "..."]}}
+{{"pass": true|false, "issues": ["<specific problem and the exact text to change>", "..."]}}
 """
+
+
+REVISE_SYSTEM = f"""You fix a draft Instagram carousel that failed a fact check.
+Apply every ISSUE by editing or removing the offending text. Keep everything else the same.
+If a slide cannot be fixed without the unsupported claim, rewrite it from facts that are in the SOURCE TEXT.
+Keep the same JSON structure and field names, and keep 3 or 4 slides.
+
+{STYLE_RULES}
+
+Return the complete corrected draft as JSON only."""

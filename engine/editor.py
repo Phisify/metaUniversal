@@ -52,10 +52,27 @@ def write(story: Story, article_text: str, market: dict, themes: list[str]) -> d
         f"SOURCE TEXT:\n{article_text}"
     )
     draft = sanitize(complete_json(prompts.WRITE_SYSTEM, user, max_tokens=2500))
+    return _tidy(draft, themes)
+
+
+def _tidy(draft: dict, themes: list[str]) -> dict:
     if draft.get("theme") not in themes:
-        draft["theme"] = themes[0]
+        draft["theme"] = ""
     draft["slides"] = [s for s in draft.get("slides", []) if s.get("heading") and s.get("body")][:4]
     return draft
+
+
+def revise(draft: dict, issues: list[str], article_text: str, market: dict, themes: list[str]) -> dict:
+    user = (
+        f"ISSUES:\n{json.dumps(issues, ensure_ascii=False)}\n\n"
+        f"MARKET SNAPSHOT:\n{json.dumps(market)}\n\n"
+        f"SOURCE TEXT:\n{article_text}\n\n"
+        f"DRAFT:\n{json.dumps(draft, ensure_ascii=False, indent=1)}"
+    )
+    fixed = sanitize(complete_json(prompts.REVISE_SYSTEM, user, max_tokens=2500))
+    for key in ("entity_query", "scene_query", "pillar"):
+        fixed.setdefault(key, draft.get(key, ""))
+    return _tidy(fixed, themes)
 
 
 def check(draft: dict, article_text: str, market: dict) -> tuple[bool, list[str]]:

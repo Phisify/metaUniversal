@@ -89,6 +89,10 @@ def run(dry_run: bool | None = None) -> dict:
 
         draft = editor.write(story, article, market, cfg["webinar_themes"])
         ok, issues = editor.check(draft, article, market)
+        if not ok and issues:
+            log.info("check failed, revising once: %s", issues)
+            draft = editor.revise(draft, issues, article, market, cfg["webinar_themes"])
+            ok, issues = editor.check(draft, article, market)
         if not ok:
             log.info("check failed for %s: %s", story.title, issues)
             db.record(story_url=story.url, story_title=story.title, source=story.source,
