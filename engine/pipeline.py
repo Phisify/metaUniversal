@@ -15,7 +15,8 @@ from .sources import extract_article, fetch_feeds, market_snapshot
 
 log = logging.getLogger(__name__)
 MIN_SOURCE_CHARS = 600  # below this we cannot fact-check, so we skip the story
-MAX_ATTEMPTS = 6
+MAX_DRAFTS = 3     # LLM-costly attempts per run
+MAX_SCAN = 10      # stories looked at per run (blocked ones are free)
 
 
 def _priority_pillar(mix: dict, counts: dict) -> str:
@@ -25,9 +26,16 @@ def _priority_pillar(mix: dict, counts: dict) -> str:
 
 
 def _caption(draft: dict, cfg: dict, source_name: str, credit: str) -> str:
-    tags = list(dict.fromkeys(cfg.get("hashtags_always", []) + draft.get("hashtags", [])))[:6]
+    tags, seen = [], set()
+    for t in cfg.get("hashtags_always", []) + draft.get("hashtags", []):
+        t = "#" + t.lstrip("#").replace(" ", "")
+        if len(t) > 1 and t.lower() not in seen:
+            seen.add(t.lower())
+            tags.append(t)
+    tags = tags[:6]
+    headline = draft.get("caption_headline") or f"{draft['cover_title']}: {draft['cover_subtitle']}"
     parts = [
-        f"{draft['cover_title']} {draft['cover_subtitle']}",
+        headline,
         draft.get("caption_body", ""),
         cfg["cta_line"],
         f"Source: {source_name}" + (f"\n{credit}" if credit else ""),
@@ -75,7 +83,10 @@ def run(dry_run: bool | None = None) -> dict:
     market = market_snapshot()
 
     # 3. write + check, falling back down the ranking
-    for idx in ranked[:MAX_ATTEMPTS]:
+    drafts = 0
+    for idx in ranked[:MAX_SCAN]:
+        if drafts >= MAX_DRAFTS:
+            break
         story = candidates[idx]
         article = extract_article(story.url)
         if len(article) < MIN_SOURCE_CHARS and len(story.content) > len(article):
@@ -87,6 +98,7 @@ def run(dry_run: bool | None = None) -> dict:
                       pillar=story.pillar, status="rejected", reason="source text too thin")
             continue
 
+        drafts += 1
         draft = editor.write(story, article, market, cfg["webinar_themes"])
         ok, issues = editor.check(draft, article, market)
         if not ok and issues:
@@ -101,7 +113,7 @@ def run(dry_run: bool | None = None) -> dict:
             continue
 
         # 4. photo + render
-        photo = find_photo(draft.get("entity_query", ""), draft.get("scene_query", ""))
+        photo = find_photo(draft.get("entity_query", ""), draft.get("scene_query", ""), draft.get("entity_type", "other"), draft.get("entity_context", ""))
         pages = build_pages(draft, photo, cfg["brand"], story.source)
         out_dir = settings.out_dir / run_id
         files = render(pages, out_dir)

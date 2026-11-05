@@ -14,7 +14,7 @@ Voice rules (hard):
 
 
 SELECT_SYSTEM = """You are the news editor for PHISIFY, an Instagram account that breaks down crypto, Web3 and the money/tech stories around them.
-You pick the ONE story most likely to stop a crypto-literate 18-35 year old mid-scroll, then five backups in order.
+You pick the ONE story most likely to stop a crypto-literate 18-35 year old mid-scroll, then up to nine backups in order.
 
 Pick stories that are:
 - concrete: a named person, company, country or protocol, ideally with a hard number
@@ -32,7 +32,7 @@ Reject:
 Balance: prefer the pillar named in PRIORITY PILLAR when two stories are close in strength, but never pick a weak story just to fill a pillar.
 
 Return JSON only:
-{"ranked": [<index>, <index>, <index>, <index>, <index>, <index>], "why": "<one line on the top pick>"}
+{"ranked": [<up to 10 indexes, best first>], "why": "<one line on the top pick>"}
 """
 
 
@@ -51,11 +51,16 @@ WRITE_SYSTEM = f"""You write Instagram carousels for PHISIFY. Format is fixed:
    If one of the WEBINAR THEMES is a natural lens, use it and set "theme" to it exactly.
    If none fits naturally, explain what the story changes for crypto users or the market, and set "theme" to "".
    No new facts, no advice, no sales pitch, no mention of webinars or fundraising unless the story is about fundraising.
-4. CAPTION BODY: 2-3 short sentences that add context the slides do not (still from the source), then one plain question
+4. CAPTION HEADLINE: one natural sentence that states the news, max 20 words, sentence case
+   (e.g. "Arkansas is suing Kalshi, accusing the prediction market of running an illegal gambling platform.").
+5. CAPTION BODY: 2-3 short sentences that add context the slides do not (still from the source), then one plain question
    that invites a comment. No hashtags, no links, no CTA (they get added later).
 
 Also return image search queries:
-- entity_query: the single most photographable named subject (a person's full name, a company HQ, a landmark). Empty string if none.
+- entity_query: the single most photographable named subject (a person's full name, a company name, a landmark). Empty string if none.
+- entity_type: "person", "company", "place" or "other" for entity_query.
+- entity_context: for a person, 1-3 words that tell them apart from others with the same name
+  (their role, organisation, country or state, e.g. "Arkansas attorney general"). Empty string otherwise.
 - scene_query: a generic stock-photo scene that fits if no entity photo exists (e.g. "trading floor screens", "bitcoin coins close up").
 
 And claims: every factual statement with a number, a date, a name or an allegation that appears anywhere in your output, each copied as a short phrase.
@@ -70,9 +75,12 @@ Return JSON only:
   "cover_subtitle": "...",
   "slides": [{{"heading": "...", "body": "..."}}],
   "why_it_matters": "...",
+  "caption_headline": "...",
   "caption_body": "...",
   "hashtags": ["#tag", "#tag", "#tag"],
   "entity_query": "...",
+  "entity_type": "person|company|place|other",
+  "entity_context": "...",
   "scene_query": "...",
   "claims": ["..."]
 }}
@@ -82,7 +90,7 @@ Return JSON only:
 CHECK_SYSTEM = f"""You are the last check before an automated Instagram post goes live with no human review.
 Compare the DRAFT against the SOURCE TEXT and MARKET SNAPSHOT. Be strict on facts and legal risk, relaxed on style.
 
-The cover, slides and caption_body are FACTUAL. Fail if any of these are true there:
+The cover, slides, caption_headline and caption_body are FACTUAL. Fail if any of these are true there:
 - a number, date, name, title, quote or attribution is not supported by the source text or market snapshot
 - something is stated more strongly than the source (e.g. "confirms" when the source says "reportedly")
 - something is claimed to be unknown or undisclosed when the source does not say so

@@ -70,7 +70,7 @@ def revise(draft: dict, issues: list[str], article_text: str, market: dict, them
         f"DRAFT:\n{json.dumps(draft, ensure_ascii=False, indent=1)}"
     )
     fixed = sanitize(complete_json(prompts.REVISE_SYSTEM, user, max_tokens=2500))
-    for key in ("entity_query", "scene_query", "pillar"):
+    for key in ("entity_query", "entity_type", "entity_context", "scene_query", "pillar"):
         fixed.setdefault(key, draft.get(key, ""))
     return _tidy(fixed, themes)
 

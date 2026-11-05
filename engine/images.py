@@ -24,20 +24,25 @@ STOPWORDS = {"the", "and", "of", "for", "inc", "ltd", "group", "company", "corp"
 MAX_VISION_CHECKS = 3
 
 VISION_SYSTEM = """You check cover photos for an automated news account before they are published.
-Answer whether the image clearly and recognisably shows the SUBJECT.
-- A person: it must plausibly be that specific person (a portrait or clear photo of them). Any doubt = false.
-- A company: its logo, branded product, branded store, or a building with its name visible. A generic skyline or unbranded building = false.
-- A place or object: it must clearly be that place or object.
-Also return false for anything graphic, sexual, or a chart/screenshot full of text.
+You are given a SUBJECT and its TYPE.
+
+TYPE person: do NOT try to identify who it is. Identity is already confirmed by the file's name and metadata.
+  Pass if it is a clear, well-lit photo where one person is the obvious main subject (portrait, speaking, at an event).
+  Fail if it is a group with no clear main subject, a tiny or blurry figure, a drawing, or a document.
+TYPE company: pass only if the company's logo, branded product, branded store, or its name is visible.
+  A generic skyline, office or unbranded building = fail.
+TYPE place or other: pass only if it clearly shows that place or thing.
+
+Always fail anything graphic, sexual, or a chart/screenshot full of text.
 Return JSON only: {"match": true|false, "reason": "<short>"}"""
 
 
-def matches_subject(data: bytes, subject: str) -> bool:
+def matches_subject(data: bytes, subject: str, entity_type: str = "other") -> bool:
     from .llm import complete_json  # local import keeps this module importable without the SDK configured
 
     content = [
         {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(data).decode()}},
-        {"type": "text", "text": f"SUBJECT: {subject}"},
+        {"type": "text", "text": f"SUBJECT: {subject}\nTYPE: {entity_type}"},
     ]
     try:
         out = complete_json(VISION_SYSTEM, content, max_tokens=300)
@@ -73,13 +78,22 @@ def _download(url: str, headers: dict | None = None) -> bytes | None:
         return None
 
 
-def wikimedia(query: str) -> Photo | None:
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def wikimedia(query: str, entity_type: str = "other", context: str = "") -> Photo | None:
     if not query:
         return None
-    # The file title must mention a real word from the query, so we never put the wrong face on a story.
-    keywords = [w for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 3 and w not in STOPWORDS]
+    is_person = entity_type == "person"
+    if is_person:
+        # Every part of the name must be in the file title, so we never put the wrong face on a story.
+        keywords = [w for w in _words(query) if len(w) > 1]
+    else:
+        keywords = [w for w in _words(query) if len(w) > 3 and w not in STOPWORDS]
     if not keywords:
         return None
+    context_words = [w for w in _words(context) if len(w) > 3 and w not in STOPWORDS]
     try:
         r = requests.get(
             "https://commons.wikimedia.org/w/api.php",
@@ -107,7 +121,11 @@ def wikimedia(query: str) -> Photo | None:
         if checks >= MAX_VISION_CHECKS:
             break
         title = page.get("title", "").lower()
-        if not any(k in title for k in keywords):
+        title_words = set(_words(title))
+        if is_person:
+            if not all(k in title_words for k in keywords):
+                continue
+        elif not any(k in title for k in keywords):
             continue
         info = (page.get("imageinfo") or [{}])[0]
         if info.get("mime") not in ("image/jpeg", "image/png") or info.get("width", 0) < 900:
@@ -116,12 +134,23 @@ def wikimedia(query: str) -> Photo | None:
         licence = meta.get("LicenseShortName", {}).get("value", "")
         if not licence.lower().startswith(ALLOWED_LICENCES):
             continue
+        if is_person and context_words:
+            # Same name, different person (a politician vs a footballer) is the main risk. The title,
+            # description or categories must also mention the story's context.
+            about = " ".join([
+                title,
+                strip_html(meta.get("ImageDescription", {}).get("value", "")),
+                meta.get("Categories", {}).get("value", ""),
+            ]).lower()
+            if not any(c in about for c in context_words):
+                log.info("skip %s: no context match for %s", title, context_words)
+                continue
         raw = _download(info.get("thumburl") or info.get("url"))
         if not raw:
             continue
         data = _normalise(raw)
         checks += 1
-        if not matches_subject(data, query):
+        if not matches_subject(data, query, entity_type):
             continue
         artist = strip_html(meta.get("Artist", {}).get("value", "")) or "Unknown"
         credit = f"Photo: {artist[:60]} / Wikimedia Commons, {licence}"
@@ -160,7 +189,7 @@ def pixabay(query: str) -> Photo | None:
     return None
 
 
-def find_photo(entity_query: str, scene_query: str) -> Photo | None:
-    photo = wikimedia(entity_query) or pixabay(scene_query)
+def find_photo(entity_query: str, scene_query: str, entity_type: str = "other", context: str = "") -> Photo | None:
+    photo = wikimedia(entity_query, entity_type, context) or pixabay(scene_query)
     log.info("cover photo: %s", photo.source if photo else "none, using gradient")
     return photo
