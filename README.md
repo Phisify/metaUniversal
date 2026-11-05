@@ -11,7 +11,7 @@ If a story fails the fact-check, it tries the next one (up to 3). If nothing pas
 **1. Supabase**
 Run `schema.sql` in the SQL editor. It creates `posts`, `settings` and a public `meta-engine` bucket.
 
-**2. Instagram token**
+**2. Instagram token** IGAAVKL1yzAvRBZAGFFbVNibGFiOXNOUTVJMmNNUm4xZAlc4bnhPZAkdFS2JqdjItR3JmWXh0ZA2pHZA3Q1ZAzZAfQnczRFh3OVdBUVRTdndYbnZAyeWtKeGZAUOGU0YVZAzRUI5UHVtdHY5bXpFck1teWJSSFJOdDhzeFplMkdYcktHTTFRYwZDZD
 - The Phisify Instagram account must be a professional (Business or Creator) account.
 - In your Meta developer app, add the Instagram product and use **API setup with Instagram login**.
 - Give the Phisify account a role on the app (Instagram tester). Development mode is enough for your own account.
