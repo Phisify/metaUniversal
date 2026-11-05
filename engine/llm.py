@@ -29,7 +29,8 @@ def _parse_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def complete_json(system: str, user: str, max_tokens: int = 2500) -> dict:
+def complete_json(system: str, user, max_tokens: int = 2500) -> dict:
+    """`user` is a string, or a list of content blocks (text + images)."""
     last_err = None
     for attempt in range(2):
         resp = _get_client().messages.create(

@@ -27,7 +27,7 @@ def _priority_pillar(mix: dict, counts: dict) -> str:
 def _caption(draft: dict, cfg: dict, source_name: str, credit: str) -> str:
     tags = list(dict.fromkeys(cfg.get("hashtags_always", []) + draft.get("hashtags", [])))[:6]
     parts = [
-        f"{draft['cover_title']}: {draft['cover_subtitle']}",
+        f"{draft['cover_title']} {draft['cover_subtitle']}",
         draft.get("caption_body", ""),
         cfg["cta_line"],
         f"Source: {source_name}" + (f"\n{credit}" if credit else ""),

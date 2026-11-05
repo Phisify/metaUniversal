@@ -5,6 +5,7 @@ Order: Wikimedia Commons (named people, companies, places, CC/PD only)
        -> no photo (template falls back to a branded gradient).
 Every photo carries a credit line that goes into the caption and onto the cover.
 """
+import base64
 import io
 import logging
 import re
@@ -20,6 +21,31 @@ log = logging.getLogger(__name__)
 
 ALLOWED_LICENCES = ("cc0", "public domain", "pd", "cc by")  # "cc by" also covers CC BY-SA
 STOPWORDS = {"the", "and", "of", "for", "inc", "ltd", "group", "company", "corp"}
+MAX_VISION_CHECKS = 3
+
+VISION_SYSTEM = """You check cover photos for an automated news account before they are published.
+Answer whether the image clearly and recognisably shows the SUBJECT.
+- A person: it must plausibly be that specific person (a portrait or clear photo of them). Any doubt = false.
+- A company: its logo, branded product, branded store, or a building with its name visible. A generic skyline or unbranded building = false.
+- A place or object: it must clearly be that place or object.
+Also return false for anything graphic, sexual, or a chart/screenshot full of text.
+Return JSON only: {"match": true|false, "reason": "<short>"}"""
+
+
+def matches_subject(data: bytes, subject: str) -> bool:
+    from .llm import complete_json  # local import keeps this module importable without the SDK configured
+
+    content = [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(data).decode()}},
+        {"type": "text", "text": f"SUBJECT: {subject}"},
+    ]
+    try:
+        out = complete_json(VISION_SYSTEM, content, max_tokens=300)
+    except Exception as e:
+        log.warning("vision check failed, rejecting photo: %s", e)
+        return False
+    log.info("vision check for %r: %s (%s)", subject, out.get("match"), out.get("reason", ""))
+    return bool(out.get("match"))
 
 
 @dataclass
@@ -76,7 +102,10 @@ def wikimedia(query: str) -> Photo | None:
         log.warning("wikimedia search failed: %s", e)
         return None
 
+    checks = 0
     for page in pages:
+        if checks >= MAX_VISION_CHECKS:
+            break
         title = page.get("title", "").lower()
         if not any(k in title for k in keywords):
             continue
@@ -90,9 +119,13 @@ def wikimedia(query: str) -> Photo | None:
         raw = _download(info.get("thumburl") or info.get("url"))
         if not raw:
             continue
+        data = _normalise(raw)
+        checks += 1
+        if not matches_subject(data, query):
+            continue
         artist = strip_html(meta.get("Artist", {}).get("value", "")) or "Unknown"
         credit = f"Photo: {artist[:60]} / Wikimedia Commons, {licence}"
-        return Photo(_normalise(raw), credit, "wikimedia")
+        return Photo(data, credit, "wikimedia")
     return None
 
 
