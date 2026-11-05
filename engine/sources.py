@@ -28,6 +28,7 @@ class Story:
     pillar: str
     published: str  # ISO UTC
     summary: str
+    content: str = ""  # full text from the feed, used when the site blocks fetching
 
     def to_dict(self):
         return asdict(self)
@@ -53,6 +54,8 @@ def fetch_feeds(feeds: list, max_age_hours: int) -> list[Story]:
             if published < cutoff:
                 continue
             url = (entry.get("link") or "").split("?utm")[0]
+            content_blocks = entry.get("content") or []
+            content = strip_html(content_blocks[0].get("value", "")) if content_blocks else ""
             title = strip_html(entry.get("title", ""))
             if not url or not title or url in seen_urls:
                 continue
@@ -65,6 +68,7 @@ def fetch_feeds(feeds: list, max_age_hours: int) -> list[Story]:
                     pillar=feed["pillar"],
                     published=published.isoformat(),
                     summary=strip_html(entry.get("summary", ""))[:500],
+                    content=content[:9000],
                 )
             )
     log.info("fetched %d fresh stories from %d feeds", len(stories), len(feeds))
@@ -76,6 +80,7 @@ def extract_article(url: str) -> str:
     try:
         resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
         if resp.status_code >= 400:
+            log.info("article fetch blocked (%s): %s", resp.status_code, url)
             return ""
         text = trafilatura.extract(resp.text, include_comments=False, include_tables=False) or ""
         return text[:9000]

@@ -15,7 +15,7 @@ from .sources import extract_article, fetch_feeds, market_snapshot
 
 log = logging.getLogger(__name__)
 MIN_SOURCE_CHARS = 600  # below this we cannot fact-check, so we skip the story
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 6
 
 
 def _priority_pillar(mix: dict, counts: dict) -> str:
@@ -78,6 +78,9 @@ def run(dry_run: bool | None = None) -> dict:
     for idx in ranked[:MAX_ATTEMPTS]:
         story = candidates[idx]
         article = extract_article(story.url)
+        if len(article) < MIN_SOURCE_CHARS and len(story.content) > len(article):
+            article = story.content
+            log.info("using feed text for: %s (%d chars)", story.title, len(article))
         if len(article) < MIN_SOURCE_CHARS:
             log.info("skip (source too thin to verify): %s", story.title)
             db.record(story_url=story.url, story_title=story.title, source=story.source,

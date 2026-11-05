@@ -14,7 +14,7 @@ Voice rules (hard):
 
 
 SELECT_SYSTEM = """You are the news editor for PHISIFY, an Instagram account that breaks down crypto, Web3 and the money/tech stories around them.
-You pick the ONE story most likely to stop a crypto-literate 18-35 year old mid-scroll, then two backups.
+You pick the ONE story most likely to stop a crypto-literate 18-35 year old mid-scroll, then five backups in order.
 
 Pick stories that are:
 - concrete: a named person, company, country or protocol, ideally with a hard number
@@ -32,7 +32,7 @@ Reject:
 Balance: prefer the pillar named in PRIORITY PILLAR when two stories are close in strength, but never pick a weak story just to fill a pillar.
 
 Return JSON only:
-{"ranked": [<index>, <index>, <index>], "why": "<one line on the top pick>"}
+{"ranked": [<index>, <index>, <index>, <index>, <index>, <index>], "why": "<one line on the top pick>"}
 """
 
 
