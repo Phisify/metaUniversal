@@ -25,7 +25,7 @@ def _body_size(text: str) -> int:
     return 46 if words <= 25 else 42 if words <= 34 else 38
 
 
-def build_pages(draft: dict, photo: Photo | None, brand: dict, source_name: str) -> list[str]:
+def build_pages(draft: dict, photo: Photo | None, brand: dict, source_name: str, story: bool = False) -> list[str]:
     tpl = _env.get_template("carousel.html")
     common = {"brand": brand["name"], "handle": brand["handle"], "accent": brand["accent"]}
     slides = draft["slides"]
@@ -44,9 +44,12 @@ def build_pages(draft: dict, photo: Photo | None, brand: dict, source_name: str)
             body_size=40,
             photo_uri=photo_uri,
             credit=photo.credit if photo else "",
+            story=story,
             **common,
         )
     ]
+    if story:
+        return pages
     for i, s in enumerate(slides, start=2):
         pages.append(
             tpl.render(
@@ -76,6 +79,18 @@ def build_pages(draft: dict, photo: Photo | None, brand: dict, source_name: str)
         )
     )
     return pages
+
+
+def make_story(cover: Path, out_path: Path) -> Path:
+    """1080x1920 Story: the 4:5 cover centred on a blurred, darkened copy of itself."""
+    from PIL import Image, ImageEnhance, ImageFilter
+
+    img = Image.open(cover).convert("RGB")
+    bg = img.resize((1080, 1350)).resize((1536, 1920)).crop((228, 0, 1308, 1920))
+    bg = ImageEnhance.Brightness(bg.filter(ImageFilter.GaussianBlur(40))).enhance(0.55)
+    bg.paste(img.resize((1080, 1350)), (0, (1920 - 1350) // 2))
+    bg.save(out_path, "JPEG", quality=92)
+    return out_path
 
 
 def render(pages: list[str], out_dir: Path) -> list[Path]:

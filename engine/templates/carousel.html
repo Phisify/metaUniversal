@@ -85,7 +85,7 @@
       <div class="cover-title">{{ title }}</div>
       <div class="cover-sub">{{ subtitle }}</div>
     </div>
-    <div class="credit"><span>{{ credit }}</span><span class="swipe">SWIPE &rarr;</span></div>
+    <div class="credit"><span>{{ credit }}</span>{% if not story %}<span class="swipe">SWIPE &rarr;</span>{% endif %}</div>
   </div>
 
 {% elif kind == "text" %}

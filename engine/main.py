@@ -15,6 +15,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .config import settings
 from .db import DB
+from .crosspost import LinkedIn, Threads
 from .instagram import Instagram
 from .pipeline import run
 
@@ -34,10 +35,16 @@ def safe_run():
 
 
 def safe_refresh():
-    try:
-        Instagram(DB()).refresh_token()
-    except Exception:
-        log.exception("token refresh failed")
+    db = DB()
+    for name, fn in (
+        ("instagram", lambda: Instagram(db).refresh_token()),
+        ("threads", lambda: Threads(db).refresh_token() if Threads(db).ready else None),
+        ("linkedin", lambda: LinkedIn(db).refresh_token() if LinkedIn(db).ready else None),
+    ):
+        try:
+            fn()
+        except Exception:
+            log.exception("%s token refresh failed", name)
 
 
 def schedule():
@@ -62,7 +69,7 @@ def main():
     elif args.command == "schedule":
         schedule()
     elif args.command == "refresh-token":
-        Instagram(DB()).refresh_token()
+        safe_refresh()
     elif args.command in ("pause", "resume"):
         DB().set_setting("paused", "true" if args.command == "pause" else "false")
         print(f"engine {args.command}d")

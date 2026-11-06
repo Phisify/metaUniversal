@@ -10,7 +10,8 @@ from .config import load_engine_config, settings
 from .db import DB
 from .images import find_photo
 from .instagram import Instagram
-from .render import build_pages, render
+from .crosspost import channel_texts, fan_out
+from .render import build_pages, make_story, render
 from .sources import extract_article, fetch_feeds, market_snapshot
 
 log = logging.getLogger(__name__)
@@ -25,14 +26,18 @@ def _priority_pillar(mix: dict, counts: dict) -> str:
     return max(deficits, key=deficits.get)
 
 
-def _caption(draft: dict, cfg: dict, source_name: str, credit: str) -> str:
+def _tags(draft: dict, cfg: dict) -> list[str]:
     tags, seen = [], set()
     for t in cfg.get("hashtags_always", []) + draft.get("hashtags", []):
         t = "#" + t.lstrip("#").replace(" ", "")
         if len(t) > 1 and t.lower() not in seen:
             seen.add(t.lower())
             tags.append(t)
-    tags = tags[:6]
+    return tags[:6]
+
+
+def _caption(draft: dict, cfg: dict, source_name: str, credit: str) -> str:
+    tags = _tags(draft, cfg)
     headline = draft.get("caption_headline") or f"{draft['cover_title']}: {draft['cover_subtitle']}"
     parts = [
         headline,
@@ -119,6 +124,12 @@ def run(dry_run: bool | None = None) -> dict:
         files = render(pages, out_dir)
         caption = _caption(draft, cfg, story.source, photo.credit if photo else "")
         (out_dir / "caption.txt").write_text(caption, encoding="utf-8")
+        tags = _tags(draft, cfg)
+        story_cover = render(build_pages(draft, photo, cfg["brand"], story.source, story=True), out_dir / "story_src")[0]
+        story_file = make_story(story_cover, out_dir / "story.jpg")
+        for name, text in channel_texts(draft, tags, story.source).items():
+            if name != "headline":
+                (out_dir / f"{name}.txt").write_text(text, encoding="utf-8")
         pillar = draft.get("pillar") if draft.get("pillar") in cfg["mix"] else story.pillar
 
         if dry_run:
@@ -137,9 +148,19 @@ def run(dry_run: bool | None = None) -> dict:
                       pillar=pillar, status="failed", reason=str(e)[:1000], payload=draft)
             return {"status": "failed", "error": str(e)}
 
+        # 6. cross-post. Instagram is already live, so nothing here can fail the run.
+        try:
+            story_url = db.upload_jpeg(f"{run_id}/{story_file.name}", story_file.read_bytes())
+        except Exception as e:
+            log.error("story upload failed: %s", e)
+            story_url = ""
+        channels = fan_out(db, ig, files=files, image_urls=urls, story_url=story_url, draft=draft,
+                           tags=tags, source_name=story.source)
+
         db.record(story_url=story.url, story_title=story.title, source=story.source, pillar=pillar,
-                  status="posted", ig_media_id=media_id, payload={**draft, "caption": caption, "images": urls})
-        return {"status": "posted", "media_id": media_id, "story": story.title}
+                  status="posted", ig_media_id=media_id, channels=channels,
+                  payload={**draft, "caption": caption, "images": urls})
+        return {"status": "posted", "media_id": media_id, "story": story.title, "channels": channels}
 
     log.info("no story passed checks this run")
     return {"status": "nothing_passed"}

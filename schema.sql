@@ -29,3 +29,6 @@ alter table settings enable row level security;
 insert into storage.buckets (id, name, public)
 values ('meta-engine', 'meta-engine', true)
 on conflict (id) do nothing;
+
+-- v2: cross-posting results per channel (safe to run on an existing database)
+alter table posts add column if not exists channels jsonb;

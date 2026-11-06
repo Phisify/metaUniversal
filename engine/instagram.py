@@ -68,6 +68,13 @@ class Instagram:
         log.info("published carousel %s", media_id)
         return media_id
 
+    def publish_story(self, image_url: str) -> str:
+        cid = self._call("POST", f"{self.uid}/media", image_url=image_url, media_type="STORIES")["id"]
+        self._wait_ready(cid)
+        media_id = self._call("POST", f"{self.uid}/media_publish", creation_id=cid)["id"]
+        log.info("published story %s", media_id)
+        return media_id
+
     def refresh_token(self) -> None:
         """Long-lived tokens last 60 days. Refreshing weekly keeps the engine alive indefinitely."""
         r = requests.get(

@@ -56,6 +56,16 @@ class DB:
         try:
             self.sb.table("posts").insert(row).execute()
         except Exception as e:
+            # If the schema migration hasn't been run yet, still record the post without the new
+            # column, otherwise dedupe would miss it and the same story could post twice.
+            if "channels" in row:
+                log.error("record failed (%s), retrying without channels. Run the schema.sql migration.", e)
+                row = {k: v for k, v in row.items() if k != "channels"}
+                try:
+                    self.sb.table("posts").insert(row).execute()
+                    return
+                except Exception as e2:
+                    e = e2
             log.error("failed to record post: %s", e)
 
     # ---------- settings ----------

@@ -11,3 +11,4 @@ requests>=2.31
 supabase>=2.4
 trafilatura>=1.8
 tzdata
+requests-oauthlib>=1.3

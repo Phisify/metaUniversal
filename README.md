@@ -11,7 +11,7 @@ If a story fails the fact-check, it tries the next one (up to 3). If nothing pas
 **1. Supabase**
 Run `schema.sql` in the SQL editor. It creates `posts`, `settings` and a public `meta-engine` bucket.
 
-**2. Instagram token** IGAAVKL1yzAvRBZAGFFbVNibGFiOXNOUTVJMmNNUm4xZAlc4bnhPZAkdFS2JqdjItR3JmWXh0ZA2pHZA3Q1ZAzZAfQnczRFh3OVdBUVRTdndYbnZAyeWtKeGZAUOGU0YVZAzRUI5UHVtdHY5bXpFck1teWJSSFJOdDhzeFplMkdYcktHTTFRYwZDZD
+**2. Instagram token**
 - The Phisify Instagram account must be a professional (Business or Creator) account.
 - In your Meta developer app, add the Instagram product and use **API setup with Instagram login**.
 - Give the Phisify account a role on the app (Instagram tester). Development mode is enough for your own account.
@@ -62,3 +62,50 @@ The `posts` table is the audit trail. Every rejected story has its `reason`, whi
 - No em or en dashes, enforced in code as well as the prompt
 - Checks Instagram's publishing quota before each post
 - 72h dedupe by URL and fuzzy title match
+
+## Cross-posting (v2)
+
+After each Instagram carousel goes live, the same post goes out to:
+
+| Channel | What gets posted |
+|---|---|
+| Instagram Story | The cover, resized to 9:16 |
+| Threads | The full carousel, plus a 500-character text |
+| X | The headline plus 4 slides, with the rest as a reply |
+| LinkedIn | The full carousel as a multi-image post |
+
+Each channel is independent. If one fails, the others still post and the failure is logged in `posts.channels` in Supabase. A channel stays off until its keys are in `.env`.
+
+**One-time database step.** Run this in the Supabase SQL editor:
+```sql
+alter table posts add column if not exists channels jsonb;
+```
+
+### Instagram Story
+No setup. It uses the Instagram token you already have.
+
+### Threads (about 15 minutes)
+1. Open the same Meta app, go to **Use cases → Add use case → Access the Threads API**.
+2. Add the `threads_basic` and `threads_content_publish` permissions.
+3. Under **App roles → Roles**, add the Phisify Threads account as a **Threads Tester**. Accept the invite in Threads (Settings → Account → Website permissions).
+4. Generate a token for that account. Exchange it for a long-lived token, then put it and the user ID into `.env`.
+
+The token refreshes itself every Monday.
+
+### X (about 20 minutes, paid)
+1. Go to developer.x.com and log in as the **Phisify X account**.
+2. Create a project and app, set **User authentication → Read and write**, then add credits. X API writes are pay-per-use, roughly $0.015 per post.
+3. Under **Keys and tokens**, generate the **API Key and Secret** and the **Access Token and Secret**.
+4. Put all four into `.env`.
+
+These keys don't expire. If the account has X Premium, set `X_MAX_CHARS=25000`.
+
+### LinkedIn company page (needs approval)
+1. On linkedin.com/developers, create an app linked to the Phisify company page and verify it from the page.
+2. Request the **Community Management API** product. LinkedIn reviews it, which can take days to weeks.
+3. Once it's approved, run OAuth with the `w_organization_social` scope as a page admin. Put the access and refresh tokens, the client ID and secret, and `LINKEDIN_AUTHOR=urn:li:organization:<page id>` into `.env`.
+
+Access tokens last 60 days, and the engine refreshes them weekly with the refresh token.
+
+### Check it
+Dry runs now also write `story.jpg`, `threads.txt`, `x.txt` and `linkedin.txt`, so you can preview every channel before going live.
